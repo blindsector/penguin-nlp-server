@@ -2,3 +2,4 @@ flask
 flask-cors
 gunicorn
 stanza
+pymorphy2-dicts-bg
