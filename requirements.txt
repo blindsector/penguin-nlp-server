@@ -2,3 +2,4 @@ flask
 flask-cors
 spacy
 gunicorn
+https://github.com/explosion/spacy-models/releases/download/bg_core_news_sm-3.7.0/bg_core_news_sm-3.7.0-py3-none-any.whl
