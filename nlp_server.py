@@ -1,15 +1,8 @@
-import spacy
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# Зареждаме български модел
-nlp = spacy.load("bg_core_news_sm")
-
 app = Flask(__name__)
-
-# 🔥 РАЗРЕШАВАМЕ ВСИЧКИ ВРЪЗКИ ОТ ВЪНШНИ САЙТОВЕ
-CORS(app, resources={r"/*": {"origins": "*"}})
-
+CORS(app)
 
 def preserve_case(original, new):
     if original.isupper():
@@ -18,36 +11,42 @@ def preserve_case(original, new):
         return new.capitalize()
     return new
 
+def smart_replace(word, dictionary, reverse=False):
+    endings = ["ите", "ът", "та", "то", "а", "я", "и"]
+
+    base_word = word.lower()
+
+    for ending in endings:
+        if base_word.endswith(ending):
+            root = base_word[:-len(ending)]
+            break
+    else:
+        root = base_word
+        ending = ""
+
+    if reverse:
+        reverse_dict = {v: k for k, v in dictionary.items()}
+        if root in reverse_dict:
+            new_root = reverse_dict[root]
+        else:
+            return word
+    else:
+        if root in dictionary:
+            new_root = dictionary[root]
+        else:
+            return word
+
+    new_word = new_root + ending
+    return preserve_case(word, new_word)
 
 def transform_text(text, dictionary, reverse=False):
-    doc = nlp(text)
-    result = []
-
-    for token in doc:
-        word = token.text
-        key = word.lower()
-
-        if reverse:
-            reverse_dict = {v.lower(): k for k, v in dictionary.items()}
-            if key in reverse_dict:
-                new_word = preserve_case(word, reverse_dict[key])
-                result.append(new_word)
-            else:
-                result.append(word)
-        else:
-            if key in dictionary:
-                new_word = preserve_case(word, dictionary[key])
-                result.append(new_word)
-            else:
-                result.append(word)
-
+    words = text.split()
+    result = [smart_replace(w, dictionary, reverse) for w in words]
     return " ".join(result)
-
 
 @app.route("/")
 def home():
-    return "NLP Server is running!"
-
+    return "Penguin NLP Server Running 🐧"
 
 @app.route("/encode", methods=["POST"])
 def encode():
@@ -56,14 +55,12 @@ def encode():
     dictionary = data.get("dictionary", {})
     return jsonify({"result": transform_text(text, dictionary)})
 
-
 @app.route("/decode", methods=["POST"])
 def decode():
     data = request.json
     text = data.get("text", "")
     dictionary = data.get("dictionary", {})
     return jsonify({"result": transform_text(text, dictionary, reverse=True)})
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
